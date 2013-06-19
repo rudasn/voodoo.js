@@ -210,6 +210,8 @@ var rockStar = new Voodo.View({
 
 ## Todo
 ```javascript
+var scope = new Voodoo();
+
 var Todo = Voodoo.Model.create({
     'defaults': {
         'text': 'Untitled',
@@ -253,20 +255,6 @@ var TodosView = Voodo.View.create({
     }
 });
 
-scope = new Voodoo();
-
-Voodoo.Routes.initialize(function() {
-   scope.app_view = new Voodo.View({
-        'el': '#wrapper',
-        'areas': {
-            '#todo': 'views.todo',
-            '#todos': 'views.todos',
-            '#about-us': 'text.about',
-            '#contact-us': 'text.contact'
-        }
-    });
-});
-
 Voodoo.Routes.add('/todo/:id', {
     'enter': function(url, id) {
         this.todo = new Todo(url + '.json');
@@ -283,7 +271,7 @@ Voodoo.Routes.add('/todo/:id', {
     }
 });
 
-VoodoRoutes.add('/', {
+Voodoo.Routes.add('/', {
     'enter': function(url) {
         this.todos = new Todos(url + '.json');
         this.todos_view = new TodosView();
@@ -298,7 +286,7 @@ VoodoRoutes.add('/', {
     }
 });
 
-Voodo.Routers.add('/about/', {
+Voodoo.Routers.add('/about/', {
     'enter': function(url) {
         scope.app_view.set('text.about', '<p>About us!</p>');
     },
@@ -307,13 +295,25 @@ Voodo.Routers.add('/about/', {
     }    
 });
 
-Voodo.Routers.add('/about/contact', {
+Voodoo.Routers.add('/about/contact', {
     'enter': function(url) {
         scope.app_view.set('text.contact', $('#contact-us'));
     },
     'exit': function(url) {
         scope.app_view.unset('text.contact');
     }    
+});
+
+Voodoo.Routes.initialize(function() {
+   scope.app_view = new Voodo.View({
+        'el': '#wrapper',
+        'areas': {
+            '#todo': 'views.todo',
+            '#todos': 'views.todos',
+            '#about-us': 'text.about',
+            '#contact-us': 'text.contact'
+        }
+    });
 });
 
 ```
