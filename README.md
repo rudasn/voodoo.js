@@ -215,7 +215,8 @@ var scope = new Voodoo();
 var Todo = Voodoo.Model.create({
     'defaults': {
         'text': 'Untitled',
-        'is_done': false
+        'is_done': false,
+        'is_active': true
     }
 });
 
@@ -230,12 +231,11 @@ var TodoView = Voodo.View.create({
     'template': '#todo-template',
     'areas': {
         '.todo-text': 'model.text',
-        '.todo-toggle-done': 'model.is_done', // two-way data binding
+        '.todo-toggle-done': 'model.is_done', // real two-way data binding
     },
     'classNameBindings': {
         'model.is_done': 'is-done:is-not-done',
-        'model.is_active': ':hidden',
-        'model.todo_view.is_visible': ':hidden'
+        'model.is_active': ':hidden'
     },
     'events': {
         'click .todo-delete': function(e, $target) {
@@ -250,10 +250,10 @@ var TodosView = Voodo.View.create({
         '.todos-list': {
             'collection': function(el, collection) {
                 collection.forEach(function(item) {
-                    item.view = new TodoView({
+                    var view = new TodoView({
                         'delegateEventsTo': this
                     });
-                    item.view.set('model', item);
+                    view.set('model', item);
                     el.append(item.view.render());
                 });
                 return el;
@@ -271,17 +271,14 @@ var TodosView = Voodo.View.create({
         }
     },
     'filter': function(type) { // type: 'done'|'all'|'active'
-        var collection = this.get('collection');
         if (type !== 'done' && type !== 'active') {
-            type = '';
+            type = 'all';
         }
-        if (type === 'done') {
-            collection = collection.filter({ 'is_done': true });
-        } else if (type === 'active') {
-            collection = collection.filter({ 'is_done': false });
-        }
-        this.set('collection_visible', collection);
-        this.set('filter_by', type || 'all');
+        // We are only changing a property on the view here.
+        // The className binding on filter_by property will change
+        // the class name of this view to include the type.
+        // CSS then takes care of which items will be visible and which not.
+        this.set('filter_by', type);
         return this;
     },
     'render': function() {
@@ -294,13 +291,6 @@ var TodosView = Voodo.View.create({
         // it's is_done property) the collection removes that item
         // and triggers a change event on 'this.active'.
         this.set('active', active_items);
-        this.on('change:collection_visible', function(e, change) {
-            if (change.type === 'add') {
-                change.item.view.show();
-            } else if (change.type === 'remove') {
-                change.item.view.hide();
-            }
-        });
         this.html(this.template()); // does areas as well
         this.filter();
         return this;
@@ -344,7 +334,7 @@ Voodoo.Routers.add('/about/', {
     },
     'exit': function(url) {
         scope.app_view.unset('text.about');
-    }    
+    }
 });
 
 Voodoo.Routers.add('/about/contact', {
@@ -353,7 +343,7 @@ Voodoo.Routers.add('/about/contact', {
     },
     'exit': function(url) {
         scope.app_view.unset('text.contact');
-    }    
+    }
 });
 
 Voodoo.Routes.initialize(function() {
@@ -367,7 +357,6 @@ Voodoo.Routes.initialize(function() {
         }
     });
 });
-
 ```
 
 
