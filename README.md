@@ -208,7 +208,7 @@ var rockStar = new Voodo.View({
 });
 ```
 
-## Todo
+## Todo MVC
 ```javascript
 var scope = new Voodoo();
 
@@ -230,10 +230,16 @@ var TodoView = Voodo.View.create({
     'template': '#todo-template',
     'areas': {
         '.todo-text': 'model.text',
-        '.todo-toggle-done': 'model.is_done'
+        '.todo-toggle-done': 'model.is_done', // two-way data binding
     },
     'classNameBindings': {
-        'model.is_done': 'is-done:is-not-done'
+        'model.is_done': 'is-done:is-not-done',
+        'model.is_active': ':hidden'
+    },
+    'events': {
+        'click .todo-delete': function(e, $target) {
+            this.set('is_active', !this.get('is_active'));
+        }
     }
 });
 
@@ -243,15 +249,55 @@ var TodosView = Voodo.View.create({
         '.todos-list': {
             'collection': function(el, collection) {
                 collection.forEach(function(item) {
-                    var view = new TodoView({
+                    item.view = new TodoView({
                         'delegateEventsTo': this
                     });
-                    view.set('model', item);
-                    el.append(view);
+                    item.view.set('model', item);
+                    el.append(item.view.render());
                 });
                 return el;
             }
+        },
+        '.todos-list-count-number': 'active.length'
+    },
+    'classNameBindings': {
+        'filter_by': 'filter-by-{{ filter_by }}'
+    },
+    'events': {
+        'click .todos-list-filter': function(e, $target) {
+            var type = $target.attr('data-filterType');
+            this.filter(change.to);
         }
+    },
+    'filter': function(type) { // type: 'done'|'all'|'active'
+        type || (type = 'all');
+        var collection = this.get('collection'),
+            is_done = type === 'done';
+        if (is_done || type === 'active') {
+            collection = collection.filter({
+                'is_done': is_done    
+            });
+        }
+        collection.forEach(function(item) {
+            item.view.show();
+        }).rest().forEach(function(item) {
+            item.view.hide();    
+        });
+        this.set('filter_by', type);
+        return this;
+    },
+    'render': function() {
+        var active_items = this.get('collection').filter({
+            'is_done': false
+        });
+        // "Live" collections.
+        // When the collection changes (ie, one of its models changes
+        // it's is_done property) the collection removes that item
+        // and triggers a change event on 'this.active'.
+        this.set('active', active_items);
+        this.html(this.template()); // does areas as well
+        this.filter();
+        return this;
     }
 });
 
