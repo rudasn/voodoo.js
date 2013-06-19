@@ -16,7 +16,7 @@ Modern web applications are data driven and so the way we work with the data is 
 ### PubSub/Events
 
 ```javascript
-var RockStars = new RockStars('/rockstars/');
+var RockStars = new Voodo.Store('/rockstars/');
 
 RockStars.on('change:name', function(e, change) {
     var rockstars = change.items,
@@ -35,15 +35,35 @@ RockStars.on('push', function(e, change) {
 
 ```
 
+### Inheritance
+
+```javascript
+var 60sRockStars = RockStars.create({
+    'sayName': function() {
+        return this.each(function() {
+            console.log('Hi! My name is ' + this.name);
+        });
+    }
+}).filter({
+    'decades_active__contains': 1960
+});
+```
+
 ### Arrays
 
 ```javascript
-var RockStars = new RockStars('/rockstars/?sortBy=name');
+var RockStars = new Voodo.Store('/rockstars/');
+
+// Whenever data is fetched from server pass the results
+// to this method and return the data we want.
+RockStars.parse = function(response, status, xhr) {
+    return response.items; 
+};
 
 // Filter
 var named_jimmy = RockStars.filter({ 'name': 'Jimmy' });
 named_jimmy.length; // => 12
-named_jimmy.filter({ 'surname': 'Hendrix' }); // => 1
+named_jimmy.filter({ 'surname': 'Hendrix' }).length; // => 1
 
 var older_than_27 = RockStars.filter({ 'age__gt': 27 });
 older_than_27.length; // => 628
@@ -132,7 +152,7 @@ Associate DOM elements with some data. When the data changes, update the DOM ele
 
 ```javascript
 // The flexible way.
-var RockStar = Voodo.View.create({
+var rockStar = new Voodo.View({
     'bindings': {
         'name': '.rockstar-name',
         'dod': '.rockstar-dod'
@@ -147,7 +167,10 @@ var RockStar = Voodo.View.create({
     }
 });
 
-var RockStar = Voodo.View.create({
+rockStar.bind(this.model, 'html');
+rockStar.view('.rockstar-name').bind(this.model.attribute('name'));
+
+var rockStar = new Voodo.View({
     'initialize': function(attrs, opts) {
         this.binding(this.model, 'name', '.rockstar-name');
         this.binding(this.model, 'dod', '.rockstar-dod',
@@ -158,8 +181,8 @@ var RockStar = Voodo.View.create({
     }
 });
 
-Or the long way around:
-var RockStar = Voodo.View.create({
+// Or the long way around:
+var rockStar = new Voodo.View({
     'areas': {
         '.rockstar-name': function(el) {
             return this.model.get('name');
@@ -174,7 +197,6 @@ var RockStar = Voodo.View.create({
         });
         this.on('change:name', function(e, change) {
             this.area('.rockstar-name');
-            this.area('.rockstar-name').pulsate();
             this.model.set('name', change.to);
         });
         return this;
@@ -184,9 +206,130 @@ var RockStar = Voodo.View.create({
         return this;
     }
 });
+```
+
+```javascript
+var RockStar = Voodoo.Model.create({
+    'defaults': {
+        'name': '',
+        'surname': ''
+    }
+});
+
+var RockStars = Voodo.Store.create({
+    'model': RockStar,
+    'parse': function(response, status, xhr) {
+        return response.items || [];
+    }
+});
+
+var RockStarView = Voodo.View.create({
+    'template': '#rockstar-template',
+    'areas': {
+        '.rockstar-name': 'model.name',
+        '.rockstar-surname': 'model.surname'
+    }
+});
+
+var RockStarsView = Voodo.View.create({
+    'template': '#rockstars-template',
+    'areas': {
+        '.rockstars-list': {
+            'collection': function(el, collection) {
+                collection.forEach(function(star) {
+                    var view = new RockStarView({
+                        'delegateEventsTo': this
+                    });
+                    view.set('model', star);
+                    el.append(view);
+                });
+                return el;
+            }
+        }
+    }
+});
+
+scope = new Voodoo();
+
+Voodoo.Routes.initialize(function() {
+   scope.app_view = new Voodo.View({
+        'el': '#wrapper',
+        'areas': {
+            '#rockstar': 'views.rockstar',
+            '#about-us': 'text.about',
+            '#contact-us': 'text.contact'
+        }
+    });
+});
+
+Voodoo.Routes.add('/rockstar/:id', {
+    'enter': function(url, id) {
+        this.rockstar = new RockStar(url + '.json');
+        this.rockstar_view = new RockStarView();
+        this.rockstar_view.set('model', this.rockstar);
+        scope.app_view.set('views.rockstar', this.rockstar_view);
+        this.rockstar_view.render();
+    },
+    'exit': function(url,id) {
+        this.rockstar_view.unset('model', this.rockstar);
+        scope.app_view.unset('views.rockstar', this.rockstar_view);
+        this.rockstar_view.destroy();
+        this.rockstar.destroy();
+    }
+});
+
+VoodoRoutes.add('/rockstars/', {
+    'enter': function(url) {
+        this.rockstars = new RockStars(url + '.json');
+        this.rockstars_view = new RockStarsView();
+        this.rockstars_view.set('collection', this.rockstars);
+        scope.app_view.set('views.rockstars', this.rockstars_view);
+        this.rockstars_view.render();
+    },
+    'exit': function(url) {
+        this.rockstars_view.unset('collection', this.rockstars);
+        scope.app_view.unset('views.rockstars', this.rockstars_view);
+        this.rockstars_view.destroy();
+    }
+});
+
+Voodo.Routers.add('/about/', {
+    'enter': function(url) {
+        scope.app_view.set('text.about', '<p>About us!</p>');
+    },
+    'exit': function(url) {
+        scope.app_view.unset('text.about');
+    }    
+});
+
+Voodo.Routers.add('/about/contact', {
+    'enter': function(url) {
+        scope.app_view.set('text.contact', $('#contact-us'));
+    },
+    'exit': function(url) {
+        scope.app_view.unset('text.contact');
+    }    
+});
+
+```
+
+## Todo
+```javascript
 
 
+```
 
+
+## Class name data bindings
+
+```javascript
+var RockStar = new Voodo.View({
+    'el': $('#rockstar-0'),
+    'classNameBindings': {
+        'name': 'has-name:no-name',
+        'state': 'at-state-{{ state }}'
+    }
+});
 ```
 
 # Controller
