@@ -234,7 +234,8 @@ var TodoView = Voodo.View.create({
     },
     'classNameBindings': {
         'model.is_done': 'is-done:is-not-done',
-        'model.is_active': ':hidden'
+        'model.is_active': ':hidden',
+        'model.todo_view.is_visible': ':hidden'
     },
     'events': {
         'click .todo-delete': function(e, $target) {
@@ -270,24 +271,22 @@ var TodosView = Voodo.View.create({
         }
     },
     'filter': function(type) { // type: 'done'|'all'|'active'
-        type || (type = 'all');
-        var collection = this.get('collection'),
-            is_done = type === 'done';
-        if (is_done || type === 'active') {
-            collection = collection.filter({
-                'is_done': is_done    
-            });
+        var collection = this.get('collection');
+        if (type !== 'done' && type !== 'active') {
+            type = '';
         }
-        collection.forEach(function(item) {
-            item.view.show();
-        }).rest().forEach(function(item) {
-            item.view.hide();    
-        });
-        this.set('filter_by', type);
+        if (type === 'done') {
+            collection = collection.filter({ 'is_done': true });
+        } else if (type === 'active') {
+            collection = collection.filter({ 'is_done': false });
+        }
+        this.set('collection_visible', collection);
+        this.set('filter_by', type || 'all');
         return this;
     },
     'render': function() {
-        var active_items = this.get('collection').filter({
+        var collection = this.get('collection'),
+            active_items = this.get('collection').filter({
             'is_done': false
         });
         // "Live" collections.
@@ -295,6 +294,13 @@ var TodosView = Voodo.View.create({
         // it's is_done property) the collection removes that item
         // and triggers a change event on 'this.active'.
         this.set('active', active_items);
+        this.on('change:collection_visible', function(e, change) {
+            if (change.type === 'add') {
+                change.item.view.show();
+            } else if (change.type === 'remove') {
+                change.item.view.hide();
+            }
+        });
         this.html(this.template()); // does areas as well
         this.filter();
         return this;
