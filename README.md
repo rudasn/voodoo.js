@@ -208,39 +208,43 @@ var rockStar = new Voodo.View({
 });
 ```
 
+## Todo
 ```javascript
-var RockStar = Voodoo.Model.create({
+var Todo = Voodoo.Model.create({
     'defaults': {
-        'name': '',
-        'surname': ''
+        'text': 'Untitled',
+        'is_done': false
     }
 });
 
-var RockStars = Voodo.Store.create({
-    'model': RockStar,
+var Todos = Voodo.Store.create({
+    'model': Todo,
     'parse': function(response, status, xhr) {
         return response.items || [];
     }
 });
 
-var RockStarView = Voodo.View.create({
-    'template': '#rockstar-template',
+var TodoView = Voodo.View.create({
+    'template': '#todo-template',
     'areas': {
-        '.rockstar-name': 'model.name',
-        '.rockstar-surname': 'model.surname'
+        '.todo-text': 'model.text',
+        '.todo-toggle-done': 'model.is_done'
+    },
+    'classNameBindings': {
+        'model.is_done': 'is-done:is-not-done'
     }
 });
 
-var RockStarsView = Voodo.View.create({
-    'template': '#rockstars-template',
+var TodosView = Voodo.View.create({
+    'template': '#todos-template',
     'areas': {
-        '.rockstars-list': {
+        '.todos-list': {
             'collection': function(el, collection) {
-                collection.forEach(function(star) {
-                    var view = new RockStarView({
+                collection.forEach(function(item) {
+                    var view = new TodoView({
                         'delegateEventsTo': this
                     });
-                    view.set('model', star);
+                    view.set('model', item);
                     el.append(view);
                 });
                 return el;
@@ -255,41 +259,42 @@ Voodoo.Routes.initialize(function() {
    scope.app_view = new Voodo.View({
         'el': '#wrapper',
         'areas': {
-            '#rockstar': 'views.rockstar',
+            '#todo': 'views.todo',
+            '#todos': 'views.todos',
             '#about-us': 'text.about',
             '#contact-us': 'text.contact'
         }
     });
 });
 
-Voodoo.Routes.add('/rockstar/:id', {
+Voodoo.Routes.add('/todo/:id', {
     'enter': function(url, id) {
-        this.rockstar = new RockStar(url + '.json');
-        this.rockstar_view = new RockStarView();
-        this.rockstar_view.set('model', this.rockstar);
-        scope.app_view.set('views.rockstar', this.rockstar_view);
-        this.rockstar_view.render();
+        this.todo = new Todo(url + '.json');
+        this.todo = new TodoView();
+        this.todo_view.set('model', this.todo);
+        scope.app_view.set('views.todo', this.todo_view);
+        this.todo_view.render();
     },
     'exit': function(url,id) {
-        this.rockstar_view.unset('model', this.rockstar);
-        scope.app_view.unset('views.rockstar', this.rockstar_view);
-        this.rockstar_view.destroy();
-        this.rockstar.destroy();
+        this.todo_view.unset('model', this.todo);
+        scope.app_view.unset('views.todo', this.todo_view);
+        this.todo_view.destroy();
+        this.todo.destroy();
     }
 });
 
-VoodoRoutes.add('/rockstars/', {
+VoodoRoutes.add('/', {
     'enter': function(url) {
-        this.rockstars = new RockStars(url + '.json');
-        this.rockstars_view = new RockStarsView();
-        this.rockstars_view.set('collection', this.rockstars);
-        scope.app_view.set('views.rockstars', this.rockstars_view);
-        this.rockstars_view.render();
+        this.todos = new Todos(url + '.json');
+        this.todos_view = new TodosView();
+        this.todos_view.set('collection', this.todos);
+        scope.app_view.set('views.todos', this.todos_view);
+        this.todos_view.render();
     },
     'exit': function(url) {
-        this.rockstars_view.unset('collection', this.rockstars);
-        scope.app_view.unset('views.rockstars', this.rockstars_view);
-        this.rockstars_view.destroy();
+        this.todos_view.unset('collection', this.todos);
+        scope.app_view.unset('views.todos', this.todos_view);
+        this.todos_view.destroy();
     }
 });
 
@@ -310,12 +315,6 @@ Voodo.Routers.add('/about/contact', {
         scope.app_view.unset('text.contact');
     }    
 });
-
-```
-
-## Todo
-```javascript
-
 
 ```
 
