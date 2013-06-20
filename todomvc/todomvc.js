@@ -75,6 +75,7 @@ var TodoView = Voodo.View.create({
         // When editing the item we need to show the text input
         // and hide other things.
         'is_editing': 'is-editing'
+        // vd-is-displayed vd-view (always) vd-is-removed
     },
     // Events (jQuery).
     'events': {
@@ -175,26 +176,19 @@ Voodoo.Routes.add('', {
             });
         });
 
-        // Render our view and let the application view handle the rest.
-        todos_view.render();
         app_view.views.todos = todos_view;
 
-        // Set the title of our app view to reflect the page we are seeing.
-        app_view.setTitle(todos.title);
+        // We want an interface with one primary item (what the user is seeing)
+        // and other items (other views) behind it. Like seeing your browsing
+        // history from the present.
+        // See the setPrimary method of app_view.
+        app_view.setPrimary(todos_view, {
+            'title': todos_view.text
+        });
     },
     'exit': function(url) {
-        // Remove reference to our views and destroy them.
-        scope.app_view.views.todos = null;
-        this.todos_view.todos = null;
-        this.todos_view.destroy();
-
-        // For each todo item delete its todo view.
-        this.todos.forEach(function(todo) {
-            todo.todoView.destroy();
-        });
-
-        // Unset the title of our app view.
-        app_view.setTitle(todos.title);
+        // Todos view is no longer the primary view.
+        app_view.unsetPrimary(this.todos_view);
     }
 });
 
@@ -213,33 +207,26 @@ Voodoo.Routes.add('/todo/:id', {
         todo_view.render();
         app_view.views.todo = todo_view;
 
-        // Set the title of our app view to reflect the item we are seeing.
-        app_view.setTitle(todo.text);
-
-        // Just for laughs, we want all the todos to be visible behind the
-        // todo item view. So we render all views and use CSS to stack them.
-        // Notice that we do this after our main view has loaded.
-        Voodoo.Routes.run('');
+        // As before.
+        app_view.setPrimary(todo_view, {
+            'title': todo.text
+        });
     },
     'exit': function(url,id) {
-        // Remove reference to our views and destroy them.
-        this.todo_view.model = null;
-        scope.app_view.views.todo = null;
-        this.todo_view.destroy();
-        this.todo.destroy();
-
-        // Update the app view title.
-        app_view.setTitle('');
+        // Todos view is no longer the primary view.
+        app_view.unsetPrimary(this.todos_view);
     }
 });
 
 // Handle the about us page.
 Voodoo.Routers.add('/about', {
     'enter': function(url) {
-        scope.app_view.area('#about-us .about-us').enable();
+        app_view.setPrimary('views.about', {
+            'title': 'About us'
+        });
     },
     'exit, drill': function(url) {
-        scope.app_view.area('#about-us .about-us').disable();
+        app_view.unsetPrimary('views.about');
     }
 });
 
@@ -247,15 +234,17 @@ Voodoo.Routers.add('/about', {
 // This is a different way to do it, by using an existing DOM element.
 Voodoo.Routers.add('/about/contact', {
     'enter': function(url) {
-        scope.app_view.text.contact = $('#contact-us');
+        app_view.setPrimary('views.contact', {
+            'title': 'Contact us'
+        });
     },
     'exit': function(url) {
-        scope.app_view.text.contact = null;
+        app_view.unsetPrimary('views.contact');
     }
 });
 
 // Initialize our routes and create our global, application view.
-Voodoo.Routes.initialize(function() {
+Voodoo.initialize(function() {
     scope.app = new Voodoo.Model({
         'title': 'My Todos';
     });
@@ -266,10 +255,10 @@ Voodoo.Routes.initialize(function() {
             'title': 'page.title',
             '#todo': 'views.todo',
             '#todos': 'views.todos',
-            '#about-us .about-us': 'text.about',
-            '#about-us .contact-us': 'text.contact'
+            '#about-us .about-us': 'views.about',
+            '#about-us .contact-us': 'views.contact'
         },
-        'text': {
+        'views': {
             'about': '<p>About us!</p>'
         },
         'views': {},
@@ -277,8 +266,35 @@ Voodoo.Routes.initialize(function() {
             'title': scope.app.title
         },
         'app': scope.app,
-        'setTitle': function(text){
-            this.page.title = app.title + (text ? '.:.' + text : '');
+        'events': {
+            'change:primary': function(e, change) {
+                change.from && this.unsetPrimary(change.from);
+                change.to && this.setPrimary(change.to);
+            }
+        },
+        'setPrimary': function(view, opts){
+            opts || (opts = {});
+
+            if (this.primary) {
+                this.unsetPrimary(this.primary);
+            }
+
+            this.primary = view.addClass('is-primary').render();
+
+            this.page.title = this.app.title +
+                (opts.title ? '.:.' + opts.title : '');
+
+            return this;
+        },
+        'unsetPrimary': function(view){
+            if (typeof view === 'string') {
+                view = this.property(view);
+            }
+
+            if (this.primary === view.removeClass('is-primary').hide()) {
+                this.primary = null;
+                this.page.title = this.app.title;
+            }
 
             return this;
         }
