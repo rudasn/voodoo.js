@@ -11,10 +11,14 @@ var Todo = Voodoo.Model.create({
 
 // A collection of todo item models.
 var Todos = Voodo.Store.create({
+    // Set a title for our todo list. We will need it later.
+    'title': 'My todo list',
+
     // When we get a response from the server only work with the data we need.
     'parse': function(response, status, xhr) {
         return response.items || [];
     },
+
     // Create a Todo instance out of every item in the array and replace it.
     'parseItem': function(item){
         return new Todo(item);
@@ -158,7 +162,11 @@ Voodoo.Routes.add('', {
     'enter': function(url) {
         // Create our collection and view, and fetch any existing data.
         var todos = this.todos = new Todos().fetch(),
-            todos_view = this.todos_view = new TodosView();
+            todos_view = this.todos_view = new TodosView({
+                // Associate our todos view with our todos collection.
+                'todos': todos
+            }),
+            app_view = scope.app_view;
 
         // For each todo item create a view.
         todos.forEach(function(todo) {
@@ -167,12 +175,12 @@ Voodoo.Routes.add('', {
             });
         });
 
-        // Associate our todos view with our todos collection.
-        todos_view.todos = todos;
-
         // Render our view and let the application view handle the rest.
         todos_view.render();
-        scope.app_view.views.todos = todos_view;
+        app_view.views.todos = todos_view;
+
+        // Set the title of our app view to reflect the page we are seeing.
+        app_view.setTitle(todos.title);
     },
     'exit': function(url) {
         // Remove reference to our views and destroy them.
@@ -184,6 +192,9 @@ Voodoo.Routes.add('', {
         this.todos.forEach(function(todo) {
             todo.todoView.destroy();
         });
+
+        // Unset the title of our app view.
+        app_view.setTitle(todos.title);
     }
 });
 
@@ -192,14 +203,18 @@ Voodoo.Routes.add('/todo/:id', {
     'enter': function(url, id) {
         // Create our model and view and fetch any existing data.
         var todo = this.todo = new Todo({ 'id': id }).fetch(),
-            todo_view = this.todo_view = new TodoView();
-
-        // Associate the view with the model.
-        this.todo_view.model = this.todo;
+            todo_view = this.todo_view = new TodoView({
+                // Associate the view with the model.
+                'model': todo
+            }),
+            app_view = scope.app_view;
 
         // Render our view and let the application view handle the rest.
-        this.todo_view.render();
-        scope.app_view.views.todo = this.todo_view;
+        todo_view.render();
+        app_view.views.todo = todo_view;
+
+        // Set the title of our app view to reflect the item we are seeing.
+        app_view.setTitle(todo.text);
 
         // Just for laughs, we want all the todos to be visible behind the
         // todo item view. So we render all views and use CSS to stack them.
@@ -212,16 +227,19 @@ Voodoo.Routes.add('/todo/:id', {
         scope.app_view.views.todo = null;
         this.todo_view.destroy();
         this.todo.destroy();
+
+        // Update the app view title.
+        app_view.setTitle('');
     }
 });
 
 // Handle the about us page.
 Voodoo.Routers.add('/about', {
     'enter': function(url) {
-        scope.app_view.area('#about-us .about-us').show();
+        scope.app_view.area('#about-us .about-us').enable();
     },
     'exit, drill': function(url) {
-        scope.app_view.area('#about-us .about-us').hide();
+        scope.app_view.area('#about-us .about-us').disable();
     }
 });
 
@@ -238,9 +256,14 @@ Voodoo.Routers.add('/about/contact', {
 
 // Initialize our routes and create our global, application view.
 Voodoo.Routes.initialize(function() {
-   scope.app_view = new Voodo.View({
-        'el': '#wrapper',
+    scope.app = new Voodoo.Model({
+        'title': 'My Todos';
+    });
+
+    scope.app_view = new Voodo.View({
+        'el': 'html',
         'areas': {
+            'title': 'page.title',
             '#todo': 'views.todo',
             '#todos': 'views.todos',
             '#about-us .about-us': 'text.about',
@@ -249,6 +272,15 @@ Voodoo.Routes.initialize(function() {
         'text': {
             'about': '<p>About us!</p>'
         },
-        'views': {}
+        'views': {},
+        'page': {
+            'title': scope.app.title
+        },
+        'app': scope.app,
+        'setTitle': function(text){
+            this.page.title = app.title + (text ? '.:.' + text : '');
+
+            return this;
+        }
     });
 });
