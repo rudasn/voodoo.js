@@ -94,8 +94,8 @@ var TodosView = Voodo.View.create({
     'areas': {
         // The .todos-list element displays the views of all the todo items on
         // our todos collection, a store instance with Todo models.
-        // The precent of ":" means that todoView is a property of the items
-        // of the collection, not the collection itself.
+        // The presence of ":" means that todoView is a property of the items
+        // in the collection, not the collection itself.
         // When a new item is added to the collection its todoView gets
         // added to the DOM. When an item is removed its todoView gets removed.
         '.todos-list': 'todos:todoView',
@@ -156,8 +156,9 @@ var TodosView = Voodo.View.create({
 // Display list of all todo items.
 Voodoo.Routes.add('', {
     'enter': function(url) {
-        var todos, todos_view;
-        todos = this.todos = new Todos().fetch();
+        // Create our collection and view, and fetch any existing data.
+        var todos = this.todos = new Todos().fetch(),
+            todos_view = this.todos_view = new TodosView();
 
         // For each todo item create a view.
         todos.forEach(function(todo) {
@@ -166,11 +167,10 @@ Voodoo.Routes.add('', {
             });
         });
 
-        // Create our todos view and associate it with our todos collection.
-        todos_view = this.todos_view = new TodosView();
+        // Associate our todos view with our todos collection.
         todos_view.todos = todos;
 
-        // Render out view and let the application view handle the rest.
+        // Render our view and let the application view handle the rest.
         todos_view.render();
         scope.app_view.views.todos = todos_view;
     },
@@ -179,6 +179,7 @@ Voodoo.Routes.add('', {
         scope.app_view.views.todos = null;
         this.todos_view.todos = null;
         this.todos_view.destroy();
+
         // For each todo item delete its todo view.
         this.todos.forEach(function(todo) {
             todo.todoView.destroy();
@@ -189,22 +190,19 @@ Voodoo.Routes.add('', {
 // Display a single todo item.
 Voodoo.Routes.add('/todo/:id', {
     'enter': function(url, id) {
-        // Create and fetch our todo item.
-        this.todo = new Todo({
-            'id': id
-        }).fetch();
+        // Create our model and view and fetch any existing data.
+        var todo = this.todo = new Todo({ 'id': id }).fetch(),
+            todo_view = this.todo_view = new TodoView();
 
-        // Create a view for our item and associate it with the model.
-        this.todo = new TodoView();
+        // Associate the view with the model.
         this.todo_view.model = this.todo;
 
         // Render our view and let the application view handle the rest.
         this.todo_view.render();
         scope.app_view.views.todo = this.todo_view;
 
-        // We want all the todos to be visible behind the todo item view.
-        // This allows the user to quickly navigate to the todo list.
-        // The views are stacked with CSS.
+        // Just for laughs, we want all the todos to be visible behind the
+        // todo item view. So we render all views and use CSS to stack them.
         // Notice that we do this after our main view has loaded.
         Voodoo.Routes.run('');
     },
