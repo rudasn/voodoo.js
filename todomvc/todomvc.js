@@ -1,12 +1,8 @@
-var scope = new Voodoo();
-
-// The model for a single todo item.
+// The model for a single todo item with some defaults we always need.
 var Todo = Voodoo.Model.create({
-    'defaults': {
-        'text': 'Untitled',
-        'is_done': false,
-        'is_deleted': false
-    }
+    'text': 'Untitled',
+    'is_done': false,
+    'is_deleted': false
 });
 
 // A collection of todo item models.
@@ -116,9 +112,14 @@ var TodosView = Voodo.View.create({
     },
     'events': {
         'click .todos-list-filter': function(e, $target) {
-            var type = $target.attr('data-filterType');
+            e.preventDefault();
+            e.stopPropagation();
 
-            this.filter(change.to);
+            var by = $target.attr('data-filterType');
+
+            Voodoo.Routes.set('Filter', {
+                'by': by
+            });
         }
     },
     // Filter our todos based on their status.
@@ -158,8 +159,10 @@ var TodosView = Voodo.View.create({
     }
 });
 
+scope || (scope = {});
+
 // Display list of all todo items.
-Voodoo.Routes.add('', {
+Voodoo.Routes.add('/', 'Home', {
     'enter': function(url) {
         // Create our collection and view, and fetch any existing data.
         var todos = this.todos = new Todos().fetch(),
@@ -176,70 +179,25 @@ Voodoo.Routes.add('', {
             });
         });
 
+        // Associate our todos view with the app view
+        // and let it take care of the rest (render & append).
         app_view.views.todos = todos_view;
-
-        // We want an interface with one primary item (what the user is seeing)
-        // and other items (other views) behind it. Like seeing your browsing
-        // history from the present.
-        // See the setPrimary method of app_view.
-        app_view.setPrimary(todos_view, {
-            'title': todos_view.text
-        });
     },
     'exit': function(url) {
-        // Todos view is no longer the primary view.
-        app_view.unsetPrimary(this.todos_view);
+        app_view.views.todos = null;
     }
 });
 
-// Display a single todo item.
-Voodoo.Routes.add('/todo/:id', {
-    'enter': function(url, id) {
-        // Create our model and view and fetch any existing data.
-        var todo = this.todo = new Todo({ 'id': id }).fetch(),
-            todo_view = this.todo_view = new TodoView({
-                // Associate the view with the model.
-                'model': todo
-            }),
-            app_view = scope.app_view;
+Voodoo.Routes.add('/filter/:by', 'Filter', {
+    'enter': function(url, by){
+        var home_route = Voodoo.Routes.get('Home');
 
-        // Render our view and let the application view handle the rest.
-        todo_view.render();
-        app_view.views.todo = todo_view;
-
-        // As before.
-        app_view.setPrimary(todo_view, {
-            'title': todo.text
-        });
+        home_route.todos_view.filter(by);
     },
-    'exit': function(url,id) {
-        // Todos view is no longer the primary view.
-        app_view.unsetPrimary(this.todos_view);
-    }
-});
+    'exit': function(url){
+        var home_route = Voodoo.Routes.get('Home');
 
-// Handle the about us page.
-Voodoo.Routers.add('/about', {
-    'enter': function(url) {
-        app_view.setPrimary('views.about', {
-            'title': 'About us'
-        });
-    },
-    'exit, drill': function(url) {
-        app_view.unsetPrimary('views.about');
-    }
-});
-
-// Handle the contact us page.
-// This is a different way to do it, by using an existing DOM element.
-Voodoo.Routers.add('/about/contact', {
-    'enter': function(url) {
-        app_view.setPrimary('views.contact', {
-            'title': 'Contact us'
-        });
-    },
-    'exit': function(url) {
-        app_view.unsetPrimary('views.contact');
+        home_route.todos_view.filter('all');
     }
 });
 
@@ -265,38 +223,7 @@ Voodoo.initialize(function() {
         'page': {
             'title': scope.app.title
         },
-        'app': scope.app,
-        'events': {
-            'change:primary': function(e, change) {
-                change.from && this.unsetPrimary(change.from);
-                change.to && this.setPrimary(change.to);
-            }
-        },
-        'setPrimary': function(view, opts){
-            opts || (opts = {});
-
-            if (this.primary) {
-                this.unsetPrimary(this.primary);
-            }
-
-            this.primary = view.addClass('is-primary').render();
-
-            this.page.title = this.app.title +
-                (opts.title ? '.:.' + opts.title : '');
-
-            return this;
-        },
-        'unsetPrimary': function(view){
-            if (typeof view === 'string') {
-                view = this.property(view);
-            }
-
-            if (this.primary === view.removeClass('is-primary').hide()) {
-                this.primary = null;
-                this.page.title = this.app.title;
-            }
-
-            return this;
-        }
+        'app': scope.app
     });
 });
+
