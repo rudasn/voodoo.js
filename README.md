@@ -1,7 +1,29 @@
 voodoo.js
 =========
 
-Voodoo magic for front-end development.
+Voodoo magic for front-end development based on four components:
+
+* PubSub and Object.Observers - for asynchronous events.
+* Router - change application state according to the URL.
+* Store - our collections of things.
+* Model - our things, our data.
+* View - how we present our data and how the presentation behaves.
+
+**It does:**
+
+* Separation of concerns.
+* Allow for modularized architecture.
+* Event-based applications.
+* Two-way data-binding.
+* Subviews/Child Views.
+
+**Philosophy**
+
+Data is different than structure is different than presentation is different than behaviour, but affects all.
+
+Explicit over implicit: All voodoo instances have listeners (Object.observe) for all  properties!
+Modularized, Extendable, Dispoable magic: Code that contains magic (like areas, or attributes) can be easily extended and/or replaced.
+
 
 # Store
 Modern web applications are data driven and so the way we work with the data is very important.

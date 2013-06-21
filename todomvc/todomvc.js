@@ -71,7 +71,7 @@ var view = Voodo.View.create({
         'classNames': {
             // Done items are displayed differently than active items.
             // We also need to distinguish the two when filtering by status.
-            'is-done:is-active': '{{ model.is_done }}'
+            'is-done:is-active': '{{ model.is_done }}',
 
             // Deleted items are not displayed.
             'hidden': '{{ model.is_deleted }}',
@@ -248,7 +248,7 @@ scope.Routes.Filter = Voodoo.Routes.add('/:by', {
 // Initialize our routes and create our global, application view.
 Voodoo.initialize(function() {
     scope.app = new Voodoo.Model({
-        'title': 'todos';
+        'title': 'todos'
     });
 
     scope.AppView = new Voodo.View({
