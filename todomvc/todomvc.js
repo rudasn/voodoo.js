@@ -38,41 +38,49 @@ var TodoView = Voodo.View.create({
         // Two-way data-binding.
         // The DOM element ".todo-text" holds the result of
         // this.model.text. If model.text changes the html changes.
-        '.todo-text': 'model.text',
+        '.todo-text': '{{ model.text }}',
 
         // If the input which edits a todo item changes update model.text.
-        '.todo-text-edit': 'model.text',
+        '.todo-text-edit': '{{ model.text }}',
 
         // If model.is_done evaluates to true the checkbox is checked.
         // If the checkbox changes model.is_done also changes.
-        '.todo-toggle-done': 'model.is_done',
+        '.todo-toggle-done': '{{ model.is_done }}',
 
         // If model.is_deleted evaluates to true the checkbox is checked.
         // If the chechbox changes model.is_deleted also changes.
-        '.todo-toggle-delete': 'model.is_deleted'
+        '.todo-toggle-delete': '{{ model.is_deleted }}'
     },
-    // Add class name bindings.
-    // When a property of this view changes, add/remove/change a class name.
-    'classNameBindings': {
-        // Done items are displayed differently than active items.
-        // We also need to distinguish the two when filtering by status.
-        'model.is_done': 'is-done:is-active',
 
-        // Deleted items are not displayed.
-        'model.is_deleted': 'hidden',
+    // Bind the attributes of this view with whatever data we need so that
+    // when the data changes our attributes also change.
+    // This is one way binding: if our attributes change our data will *not*
+    // change.
+    'attributes': {
+        // Add class name bindings.
+        // The class name is on the left, the value on the right.
+        'classNames': {
+            // Done items are displayed differently than active items.
+            // We also need to distinguish the two when filtering by status.
+            'is-done:is-active': '{{ model.is_done }}'
 
-        // The status property of model holds details of the model's
-        // most recent XHR request. If the request is still active or if there
-        // was an error use CSS to show it.
-        // Eg. add a class of "at-state-code-[404|503|etc]" or
-        // "at-state-[loading|completed|success|error]"
-        'model.xhr.state': 'at-state-{{ model.xhr.state }}',
-        'model.xhr.code': 'at-state-code-{{ model.xhr.code }}',
+            // Deleted items are not displayed.
+            'hidden': '{{ model.is_deleted }}',
 
-        // When editing the item we need to show the text input
-        // and hide other things.
-        'is_editing': 'is-editing'
-        // vd-is-displayed vd-view (always) vd-is-removed
+            // Class names can also include property values!
+            // The status property of model holds details of the model's
+            // most recent XHR request. If the request is still active or if
+            // there was an error use CSS to show it.
+            // Eg. add a class of "at-state-code-[404|503|etc]" or
+            // "at-state-[loading|completed|success|error]"
+            'at-state-{{ model.xhr.state }}': '{{ model.xhr.state }}',
+            'at-state-code-{{ model.xhr.code }}': '{{ model.xhr.code }}',
+
+            // When editing the item we need to show the text input
+            // and hide other things.
+            'is-editing': 'is_editing'
+            // vd-is-displayed vd-view (always) vd-is-removed
+        }
     },
     // Events (jQuery).
     'events': {
@@ -98,6 +106,8 @@ var TodoView = Voodo.View.create({
 var TodosView = Voodo.View.create({
     'template': '#todos-template',
     'areas': {
+        // Can also be specified in HTML template.
+        // <div><template class=".todos-list" data-source="{{ todos:todoView }}"></template></div>
         // The .todos-list element displays the views of all the todo items on
         // our todos collection, a store instance with Todo models.
         // The presence of ":" means that todoView is a property of the items
@@ -105,7 +115,7 @@ var TodosView = Voodo.View.create({
         // todoView is a reference to a Todo view instance.
         // When a new item is added to the collection its todoView gets
         // added to the DOM. When an item is removed its todoView gets removed.
-        '.todos-list': 'todos:todoView',
+        '.todos-list': '{{ todos:todoView }}',
 
         // todos_active holds a live collection with the active items in our
         // store. When an item in our store is marked as done or not done it
@@ -113,15 +123,18 @@ var TodosView = Voodo.View.create({
         // collection, thereby changing its length.
         // The DOM element '.todos-list-count-number' will always contain
         // the correct length property.
-        '.todos-list-count-number': 'todos_active.length'
+        '.todos-list-count-number': '{{ todos_active.length }}'
     },
-    'classNameBindings': {
-        // Our filter_by property is added as a class on the view element
-        // so that we can show/hide elements depending on their state
-        // (done|active|all).
-        // So that, .filter-by-done .is-active,
-        //          .filter-by-active .is-done { display: none; }
-        'filter_by': 'filter-by-{{ filter_by }}'
+
+    'attributes': {
+        // Can also be specified in HTML template.
+        // <div data-filter-by="{{ filter_by }}"></div>
+        'className': "todos-view",
+        // Our filter_by property is added as an attribute on the view element
+        // so that we can show/hide elements depending on their state.
+        // So that, [data-filter-by="done"] .is-active,
+        //          [data-filter-by="active"] .is-done { display: none; }
+        'data-filter-by': '{{ filter_by }}'
     },
     'events': {
         // Filter our todos (done, active, or all).
@@ -129,7 +142,7 @@ var TodosView = Voodo.View.create({
             e.preventDefault();
             e.stopPropagation();
 
-            var by = $target.attr('data-filterType');
+            var by = $target.attr('data-filter-by-name');
 
             // Change the URL to one generated by the route named 'Filter'.
             Voodoo.Routes.set('Filter', {
@@ -229,16 +242,11 @@ Voodoo.initialize(function() {
     scope.app_view = new Voodo.View({
         'el': 'html',
         'areas': {
-            // Since title is a text object and we cannot assign listeners to
-            // it we use the property method to return a representation of
-            // the title property which we can use internally to add listeners
-            // to.
-            // If we were to just do scope.app.title then the #title dom
-            // element would not have one-way binding to that property.
-            '#title': scope.app.property('title'),
-            '#todo': 'views.todo',
-            '#todos': 'views.todos',
+            '#title': '{{ app.title }}',
+            '#todo': '{{ views.todo }}',
+            '#todos': '{{ views.todos }}',
         },
+        'app': scope.app,
         'views': {}
     });
 });

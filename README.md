@@ -16,9 +16,9 @@ Modern web applications are data driven and so the way we work with the data is 
 ### PubSub/Events
 
 ```javascript
-var RockStars = new Voodo.Store('/rockstars/');
+var rockStars = new Voodo.Store('/rockstars/');
 
-RockStars.on('change:name', function(e, change) {
+rockStars.on('change:name', function(e, change) {
     var rockstars = change.items,
         old_value = change.from,
         new_value = change.to;
@@ -28,7 +28,7 @@ RockStars.on('change:name', function(e, change) {
         ' to ' + new_value);
 });
 
-RockStars.on('push', function(e, change) {
+rockStars.on('add', function(e, change) {
     var rockstars = change.items;
     console.log(rockstars.length + ' new rock stars were added');
 });
@@ -38,14 +38,20 @@ RockStars.on('push', function(e, change) {
 ### Inheritance
 
 ```javascript
-var 60sRockStars = RockStars.create({
+var RockStars = Voodoo.Store.create({
     'sayName': function() {
         return this.each(function() {
             console.log('Hi! My name is ' + this.name);
         });
     }
-}).filter({
-    'decades_active__contains': 1960
+})
+
+var RockStarsSixties = RockStars.create({
+    'sayName': function() {
+        return this.each(function() {
+            console.log("Hey man.. How's it going?");
+        });
+    }
 });
 ```
 
@@ -59,8 +65,10 @@ var RockStars = new Voodo.Store('/rockstars/');
 RockStars.parse = function(response, status, xhr) {
     return response.items; 
 };
+```
 
-// Filter
+#### Filter
+```javascript
 var named_jimmy = RockStars.filter({ 'name': 'Jimmy' });
 named_jimmy.length; // => 12
 named_jimmy.filter({ 'surname': 'Hendrix' }).length; // => 1
@@ -73,15 +81,22 @@ age_range.length; // => 291
 
 var gte24_or_lte29 = RockStars.filter({ 'age__gte': 24 }, { 'age__lte': 29 });
 gte24_or_lte29.length; // => 1291
+```
 
-// Push
+#### Push/Add
+
+```javascript
+
 RockStars.push({
     "id": "2",
     "name": "Janis",
     "surname": "Joplin"
 });
+```
 
-// Set
+#### Set
+
+```javascript
 RockStars.filter({
     "name": "Janis"
 }, {
@@ -89,7 +104,11 @@ RockStars.filter({
 }).set({
     "decades_active": [ 1960, 1970 ]
 });
+```
 
+# Get
+
+```javascript
 RockStars.get({ // get using a filter (slower, but cached)
     "name": "Janis",
     "surname": "Joplin"
@@ -112,18 +131,18 @@ And the usuall methods:
 var rockStar = new Store('/rockstars/1');
 
 // Get
-rockStar.get('name'); // => Jimmy Hendrix
-rockStar.get('decates_active'); // => [ 1960, 1970 ]
+rockStar.name; // => Jimmy Hendrix
+rockStar.decates_active; // => [ 1960, 1970 ]
 
 // Set
-rockStar.set('bands', {
+rockStar.bands = {
     '01': {
         'name': 'The Jimmy Hendrix Experience'
     }    
-});
+};
 
-// Merge
-rockstar.merge('bands', {
+// Merge/Extend
+rockstar.extend('bands', {
     '01': {
         'start_date': 1950,
         'end_date': 1953
@@ -137,7 +156,16 @@ rockstar.merge('bands', {
 ```
 
 # View
+
 The second most important thing in a modern web application is the UI. We need to be able to render and manipulate the UI super quickly and with great ease. 
+
+The view handles the structure first and the behaviour second.
+
+The structure is the HTML and is defined by the ```template``` property. The ```area`` and ```attributes``` properties handle and interact with the scemantics of that HTML.
+
+The view is primarily a listener on changes from other objects in order to update its ```area```s and ```attributes```. The view is also responsible for triggering changes to either its own properties or the properties of other objects. These triggers occur from DOM event callbacks or custom methods.
+
+For example, when the model updates change the value of this input and vice versa.
 
 We need things like
 
