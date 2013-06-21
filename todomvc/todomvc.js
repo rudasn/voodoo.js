@@ -12,14 +12,23 @@ var Todos = Voodo.Store.create({
         return response.items || [];
     },
     // Originally our store contains plan objects and we want to convert
-    // those to Todo model instances.
+    // those to Todo model instances. We also want to make sure that
+    // for every Todo item we have both a model and a view.
     'parseItem': function(item){
-        return new Todo(item);
+        var model = new Todo(item);
+
+        model.view = new view({
+            'model': model
+        }, {
+            'delegateEvents': this.view
+        });
+
+        return model;
     }
 });
 
 // The view for a single todo item.
-var TodoView = Voodo.View.create({
+var view = Voodo.View.create({
     // The template we are using to construct the HTML.
     // It can be a selector, a dom element, or a function.
     'template': '#todo-template',
@@ -91,7 +100,13 @@ var TodoView = Voodo.View.create({
         // Edit (off).
         'blur .todo-text-edit': function(e, $target) {
             this.is_editing = false;
+
             this.model.text = $target.val();
+
+            // Create a new todo item.
+            if (!this.model.id) {
+                this.model.id = this.todos.add(this.model).save();
+            }
         },
         // Edit (off).
         'keyup .todo-text-edit': function(e, $target) {
@@ -107,15 +122,15 @@ var TodosView = Voodo.View.create({
     'template': '#todos-template',
     'areas': {
         // Can also be specified in HTML template.
-        // <div><template class=".todos-list" data-source="{{ todos:todoView }}"></template></div>
+        // <div><template class=".todos-list" data-source="{{ todos:view }}"></template></div>
         // The .todos-list element displays the views of all the todo items on
         // our todos collection, a store instance with Todo models.
-        // The presence of ":" means that todoView is a property of the items
+        // The presence of ":" means that view is a property of the items
         // in the collection, not the collection itself.
-        // todoView is a reference to a Todo view instance.
-        // When a new item is added to the collection its todoView gets
-        // added to the DOM. When an item is removed its todoView gets removed.
-        '.todos-list': '{{ todos:todoView }}',
+        // view is a reference to a Todo view instance.
+        // When a new item is added to the collection its view gets
+        // added to the DOM. When an item is removed its view gets removed.
+        '.todos-list': '{{ todos:view }}',
 
         // todos_active holds a live collection with the active items in our
         // store. When an item in our store is marked as done or not done it
@@ -128,8 +143,9 @@ var TodosView = Voodo.View.create({
 
     'attributes': {
         // Can also be specified in HTML template.
-        // <div data-filter-by="{{ filter_by }}"></div>
+        // <div class="todos-view"></div>
         'className': "todos-view",
+        // <div data-filter-by="{{ filter_by }}"></div>
         // Our filter_by property is added as an attribute on the view element
         // so that we can show/hide elements depending on their state.
         // So that, [data-filter-by="done"] .is-active,
@@ -191,45 +207,41 @@ var TodosView = Voodo.View.create({
 window.scope || (window.scope = {});
 
 // Display list of all todo items.
-Voodoo.Routes.add('/', 'Home', {
+scope.Routes.Home = Voodoo.Routes.add('/', {
     'enter': function(url) {
         // The user has landed on our homepage.
         // Create our collection and view, and fetch any existing data.
-        // Fetch triggers an async GET.
+        // Fetch triggers an async GET. The returned store instance will be
+        // empty until the GET completes. Once that happens it triggers a
+        // ready event which other objects can subscribe to.
         var todos = this.todos = new Todos().fetch(),
-            todos_view = this.todos_view = new TodosView({
+            view = todos.view = new TodosView({
                 // Associate our todos view with our todos collection.
                 'todos': todos
             }),
-            app_view = scope.app_view;
-
-        // For each todo item create a view.
-        todos.forEach(function(todo) {
-            todo.todoView = new TodoView(todo, {
-                'delegateEvents': todos_view
-            });
-        });
+            AppView = scope.AppView;
 
         // Associate our todos view with the app view
         // and let it take care of the rest (render & append).
-        app_view.views.todos = todos_view;
+        AppView.views.todos = view;
     },
     'exit': function(url) {
-        app_view.views.todos = null;
+        // Unassigning the view will remove it from the DOM as well.
+        AppView.views.todos = null;
     }
 });
 
 // Filter our todo collection (done, all, active).
-Voodoo.Routes.add('/filter/:by', 'Filter', {
+scope.Routes.Filter = Voodoo.Routes.add('/:by', {
     'enter': function(url, by){
-        var home_route = Voodoo.Routes.get('Home');
+        var home_route = scope.Routes.Home;
 
-        home_route.todos_view.filter(by);
+        home_route.todos.view.filter(by);
     },
     'exit': function(url){
-        var home_route = Voodoo.Routes.get('Home');
+        var home_route = scope.Routes.Home;
 
-        home_route.todos_view.filter('all');
+        home_route.todos.view.filter('all');
     }
 });
 
@@ -239,7 +251,7 @@ Voodoo.initialize(function() {
         'title': 'todos';
     });
 
-    scope.app_view = new Voodo.View({
+    scope.AppView = new Voodo.View({
         'el': 'html',
         'areas': {
             '#title': '{{ app.title }}',
@@ -251,3 +263,7 @@ Voodoo.initialize(function() {
     });
 });
 
+// App.views.todos is associated with todos.view, gets renderd immediately.
+// todos.view gets rendered immediately.
+// Some areas/attributes of todos.view are expecting todos property to complete
+// XHR request. When request is ready, update those areas + attributes.
