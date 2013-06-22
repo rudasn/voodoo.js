@@ -17,7 +17,7 @@ var Todos = Voodo.Store.create({
 });
 
 // The view for a single todo item.
-var view = Voodo.View.create({
+var TodoView = Voodo.View.create({
     // The template we are using to construct the HTML.
     // It can be a selector, a dom element, or a function.
     'template': '#todo-template',
@@ -221,31 +221,30 @@ scope.AppView = new Voodo.View({
     'views': {}
 });
 
-// Create a listener for when we add todo items in any of our Todos
-// collections. We want to create a todo view instance for every todo
-// model. When the model instance is removed from the collection
-// we make sure we delete that view.
-Todos.on('add', function(e, item) {
+Todos.on('initialize', function(e, item) {
+    // This is a very simple application and we only work with one todo
+    // collection (there are no multiple todo lists). However, it is fair to
+    // assume we will want to add multiple todo lists functionality.
+    // So we add a listener to create a todos view instance whenever a new
+    // todos store is created.
+    item.view = new TodosView({
+        'todos': item
+    });
+}).on('add', function(e, item) {
+    // Create a listener for when we add todo items in any of our Todos
+    // collections. We want to create a todo view instance for every todo
+    // model.
     item.view = new TodoView({
         'model': item
     }, {
         'delegateEvents': view
     });
 }).on('remove', function(e, items) {
+    // When the model instance is removed from the collection
+    // we make sure we delete that view.
     items.forEach(function(item) {
         item.view.destroy();
         item.view = null;
-    });
-});
-
-// This is a very simple application and we only work with one todo
-// collection (there are no multiple todo lists). However, it is fair to
-// assume we will want to add multiple todo lists functionality.
-// So we add a listener to create a todos view instance whenever a new
-// todos store is created.
-Todos.on('initialize', function(e, item) {
-    item.view = new TodosView({
-        'todos': item
     });
 });
 
