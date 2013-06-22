@@ -22,6 +22,7 @@ Voodoo magic for front-end development based on four components:
 Data is different than structure is different than presentation is different than behaviour, but affects all.
 
 Explicit over implicit: All voodoo instances have listeners (Object.observe) for all  properties!
+
 Modularized, Extendable, Dispoable magic: Code that contains magic (like areas, or attributes) can be easily extended and/or replaced.
 
 
