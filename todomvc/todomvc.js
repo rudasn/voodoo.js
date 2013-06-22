@@ -11,20 +11,9 @@ var Todos = Voodo.Store.create({
     'parse': function(response, status, xhr) {
         return response.items || [];
     },
-    // Originally our store contains plan objects and we want to convert
-    // those to Todo model instances. We also want to make sure that
-    // for every Todo item we have both a model and a view.
-    'parseItem': function(item){
-        var model = new Todo(item);
-
-        model.view = new view({
-            'model': model
-        }, {
-            'delegateEvents': this.view
-        });
-
-        return model;
-    }
+    // Originally our store contains plain objects and we want to convert
+    // those to Todo model instances.
+    'parseItem': function(item){ return new Todo(item); }
 });
 
 // The view for a single todo item.
@@ -33,7 +22,7 @@ var view = Voodo.View.create({
     // It can be a selector, a dom element, or a function.
     'template': '#todo-template',
 
-    // Specify areas (or sub-views).
+    // Two-way bindings on the view's children DOM elements.
     // The result of the key should be a property that evaluates to:
     // * a dom element: replace specified dom element with the one on property.
     // * a string: if can append, append to dom, add listener from model.
@@ -61,10 +50,9 @@ var view = Voodo.View.create({
         '.todo-toggle-delete': '{{ model.is_deleted }}'
     },
 
+    // One-way data bindings on the view's attributes.
     // Bind the attributes of this view with whatever data we need so that
     // when the data changes our attributes also change.
-    // This is one way binding: if our attributes change our data will *not*
-    // change.
     'attributes': {
         // Add class name bindings.
         // The class name is on the left, the value on the right.
@@ -105,7 +93,7 @@ var view = Voodo.View.create({
 
             // Create a new todo item.
             if (!this.model.id) {
-                this.model.id = this.todos.add(this.model).save();
+                this.model.id = this.todos.add(this.model.toJSON()).save();
             }
         },
         // Edit (off).
@@ -140,7 +128,6 @@ var TodosView = Voodo.View.create({
         // the correct length property.
         '.todos-list-count-number': '{{ todos_active.length }}'
     },
-
     'attributes': {
         // Can also be specified in HTML template.
         // <div class="todos-view"></div>
@@ -206,64 +193,95 @@ var TodosView = Voodo.View.create({
 // A global variable we will be using so as to keep window clean.
 window.scope || (window.scope = {});
 
-// Display list of all todo items.
-scope.Routes.Home = Voodoo.Routes.add('/', {
+// This application works with the Todo, Todos, TodoView, and TodosView
+// classes and this is the place we bring those together and make something
+// out of them. We will be using their properties and methods to do that.
+
+// We could have some of this code in our "classes"
+// (Todos, Todo, TodoView) but that would make those classes too
+// dependent on each other. So we try not to have logic in those
+// classes unless it only relates to that classes and does not
+// depend (too much) on other classes.
+
+// Create our application model, an object with data
+// abour this application.
+scope.app = new Voodoo.Model({
+    'title': 'todos'
+});
+
+// Create our main view.
+scope.AppView = new Voodo.View({
+    'el': 'html',
+    'areas': {
+        '#title': '{{ app.title }}',
+        '#todo': '{{ views.todo }}',
+        '#todos': '{{ views.todos }}',
+    },
+    'app': scope.app,
+    'views': {}
+});
+
+// Create a listener for when we add todo items in any of our Todos
+// collections. We want to create a todo view instance for every todo
+// model. When the model instance is removed from the collection
+// we make sure we delete that view.
+Todos.on('add', function(e, item) {
+    item.view = new TodoView({
+        'model': item
+    }, {
+        'delegateEvents': view
+    });
+}).on('remove', function(e, items) {
+    items.forEach(function(item) {
+        item.view.destroy();
+        item.view = null;
+    });
+});
+
+// This is a very simple application and we only work with one todo
+// collection (there are no multiple todo lists). However, it is fair to
+// assume we will want to add multiple todo lists functionality.
+// So we add a listener to create a todos view instance whenever a new
+// todos store is created.
+Todos.on('initialize', function(e, item) {
+    item.view = new TodosView({
+        'todos': item
+    });
+});
+
+// Define our homepage router.
+Voodoo.Routes.add('/', {
     'enter': function(url) {
-        // The user has landed on our homepage.
-        // Create our collection and view, and fetch any existing data.
-        // Fetch triggers an async GET. The returned store instance will be
-        // empty until the GET completes. Once that happens it triggers a
-        // ready event which other objects can subscribe to.
-        var todos = this.todos = new Todos().fetch(),
-            view = todos.view = new TodosView({
-                // Associate our todos view with our todos collection.
-                'todos': todos
-            }),
-            AppView = scope.AppView;
+        // This is a good time to initialize our todos store.
+        scope.todos = new Todos();
+
+        // We might as well retrieve any existing data we may have.
+        scope.todos.fetch();
 
         // Associate our todos view with the app view
         // and let it take care of the rest (render & append).
-        AppView.views.todos = view;
+        scope.app.view.views.todos = scope.todos.view;
     },
     'exit': function(url) {
         // Unassigning the view will remove it from the DOM as well.
-        AppView.views.todos = null;
+        scope.app.view.views.todos = null;
     }
 });
 
-// Filter our todo collection (done, all, active).
-scope.Routes.Filter = Voodoo.Routes.add('/:by', {
+// Define our filter router (done, all, active).
+Voodoo.Routes.add('/:by', {
     'enter': function(url, by){
-        var home_route = scope.Routes.Home;
-
-        home_route.todos.view.filter(by);
+        scope.todos.view.filter(by);
     },
     'exit': function(url){
-        var home_route = scope.Routes.Home;
-
-        home_route.todos.view.filter('all');
+        scope.todos.view.filter('all');
     }
 });
 
-// Initialize our routes and create our global, application view.
-Voodoo.initialize(function() {
-    scope.app = new Voodoo.Model({
-        'title': 'todos'
-    });
-
-    scope.AppView = new Voodo.View({
-        'el': 'html',
-        'areas': {
-            '#title': '{{ app.title }}',
-            '#todo': '{{ views.todo }}',
-            '#todos': '{{ views.todos }}',
-        },
-        'app': scope.app,
-        'views': {}
-    });
-});
-
+// Done adding routes.
+Voodoo.Routes.done();
 // App.views.todos is associated with todos.view, gets renderd immediately.
 // todos.view gets rendered immediately.
 // Some areas/attributes of todos.view are expecting todos property to complete
 // XHR request. When request is ready, update those areas + attributes.
+
